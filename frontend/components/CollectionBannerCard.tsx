@@ -30,7 +30,13 @@ export default function CollectionBannerCard({ c, floor }: { c: CollectionInfo; 
         <div className="relative overflow-hidden rounded-t-[1.25rem]">
           <IpfsImage src={info?.banner || info?.image} alt={`${c.name} collection banner`} className="aspect-[3/1]" />
           <div className="banner-veil" />
-          {phase && <span className={`badge absolute left-4 top-4 backdrop-blur ${PHASE_BADGE[phase].cls}`}>{PHASE_BADGE[phase].label}</span>}
+            {phase && PHASE_BADGE[phase] && (
+              <span
+                className={`badge absolute left-4 top-4 backdrop-blur ${PHASE_BADGE[phase].cls}`}
+              >
+                {PHASE_BADGE[phase].label}
+              </span>
+            )}
           <div className="absolute bottom-3 left-5 right-5">
             <p className="font-display text-lg font-semibold tracking-tight text-white drop-shadow">{c.name}</p>
             <p className="text-xs text-zinc-200">by {shortAddr(c.creator)}</p>
