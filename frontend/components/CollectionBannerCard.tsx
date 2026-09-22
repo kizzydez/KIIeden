@@ -9,6 +9,7 @@ import IpfsImage from "./IpfsImage";
 
 const PHASE_BADGE = {
   upcoming: { label: "Mint upcoming", cls: "badge-warn" },
+  whitelist: { label: "Whitelist", cls: "badge-warn" },
   live: { label: "Minting live", cls: "badge-nft badge-live" },
   ended: { label: "Trading", cls: "badge-muted" },
 } as const;
