@@ -9,7 +9,7 @@ import TiltCard from "./TiltCard";
 import IpfsImage from "./IpfsImage";
 import Icon from "./Icon";
 
-export type MemeMeta = { description?: string; image?: string; twitter?: string; telegram?: string; website?: string };
+export type MemeMeta = { name?: string; description?: string; image?: string; twitter?: string; telegram?: string; website?: string };
 
 const STATUS_CLASS: Record<string, string> = {
   Active: "badge-nft badge-live",
