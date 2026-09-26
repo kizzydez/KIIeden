@@ -58,6 +58,18 @@ export function timeLeft(endSeconds: number, nowMs: number = Date.now()): string
   return `${Math.max(m, 1)}m`;
 }
 
+/// Elapsed time since `sinceSeconds`, as a short "3h 12m" style string (companion
+/// to timeLeft, which counts down to a future time instead).
+export function timeAgo(sinceSeconds: number, nowMs: number = Date.now()): string {
+  const diff = Math.max(0, Math.floor(nowMs / 1000 - sinceSeconds));
+  const d = Math.floor(diff / 86400);
+  const h = Math.floor((diff % 86400) / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${Math.max(m, 1)}m`;
+}
+
 /// Cost in wei of `units` (18-decimal atomic amount) at `pricePerUnit` (wei per WHOLE unit),
 /// rounded UP - this mirrors RWAUnitMarketplace.buyUnits exactly.
 export function unitCost(units: bigint, pricePerUnit: bigint): bigint {

@@ -23,7 +23,9 @@ module.exports = {
     },
   },
   networks: {
-    hardhat: {},
+    hardhat: {
+      accounts: { count: 30 },
+    },
     kiiTestnet: {
       url: process.env.KII_TESTNET_RPC || "https://json-rpc.uno.sentry.testnet.v3.kiivalidator.com",
       chainId: 1336,

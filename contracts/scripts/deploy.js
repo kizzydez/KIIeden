@@ -110,6 +110,13 @@ async function main() {
   const rwaChatAddr = await rwaChat.getAddress();
   console.log("RWAChat:", rwaChatAddr);
 
+  const MemeLaunchpad = await ethers.getContractFactory("MemeLaunchpad");
+  const launchpad = await MemeLaunchpad.deploy(FEE_RECIPIENT);
+  await launchpad.waitForDeployment();
+  const launchpadAddr = await launchpad.getAddress();
+  console.log("MemeLaunchpad:", launchpadAddr);
+  console.log(`  creation fee: ${ethers.formatEther(await launchpad.creationFeeWei())} KII (adjustable 1-20 via setCreationFee)`);
+
   // Sanity check straight from the chain.
   const onChainFee = await feeManager.feeInKii();
   console.log(`\nOn-chain fee check: feeInKii() = ${ethers.formatEther(onChainFee)} KII`);
@@ -125,6 +132,7 @@ async function main() {
     rwaUnitMarketplace: rwaMarketAddr,
     rwaCurveMarket: rwaCurveAddr,
     rwaChat: rwaChatAddr,
+    memeLaunchpad: launchpadAddr,
     feeKii,
     treasury: TREASURY,
     deployer: deployer.address,
@@ -153,6 +161,7 @@ async function main() {
         NEXT_PUBLIC_RWA_MARKETPLACE_ADDRESS: rwaMarketAddr,
         NEXT_PUBLIC_RWA_CURVE_ADDRESS: rwaCurveAddr,
         NEXT_PUBLIC_RWA_CHAT_ADDRESS: rwaChatAddr,
+        NEXT_PUBLIC_LAUNCHPAD_ADDRESS: launchpadAddr,
         NEXT_PUBLIC_DEPLOY_BLOCK: String(startBlock),
       });
       console.log("Wrote contract addresses into frontend/.env.local (restart `npm run dev` to pick them up)");
@@ -180,7 +189,7 @@ async function main() {
   console.log("3. To change the fee later: FEE_KII=<0-50> npx hardhat run scripts/setFee.js --network <network>");
   console.log("4. Verify the contracts on the KiiChain explorer.");
   if (isMainnet) {
-    console.log("5. MAINNET: transfer ownership of FeeManager, CollectionFactory, Marketplace, RWAFactory, RWAUnitMarketplace, RWACurveMarket and RWAChat to your multisig (Ownable2Step: multisig must then call acceptOwnership()).");
+    console.log("5. MAINNET: transfer ownership of FeeManager, CollectionFactory, Marketplace, RWAFactory, RWAUnitMarketplace, RWACurveMarket, RWAChat and MemeLaunchpad to your multisig (Ownable2Step: multisig must then call acceptOwnership()).");
   } else {
     console.log("5. Before mainnet: move ownership of every contract to a multisig (transferOwnership -> acceptOwnership).");
   }

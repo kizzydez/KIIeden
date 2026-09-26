@@ -59,6 +59,21 @@ const CONTRACT_ERRORS: Record<string, string> = {
   InsufficientAllowanceOrBalance: "You don't hold (or haven't approved) enough units for that.",
   NotRwaAsset: "That isn't a KiiEden RWA asset.",
   FeeAboveMax: "The fee can't be above 50 KII.",
+  // --- launchpad ---
+  NotLaunch: "That token wasn't created on the KiiEden launchpad.",
+  BadName: "Token name must be 1-32 characters and symbol 1-12 characters.",
+  BadMaxWallet: "Max wallet must be between 0.5% and 100% of supply.",
+  BadCreationFee: "The creation fee must be between 1 and 20 KII.",
+  WrongFee: "Send exactly the current creation fee shown on the page.",
+  FeeTooHigh: "That fee is above the allowed maximum.",
+  TradingHalted: "This token isn't trading right now (it's inactive, graduating out, or removed).",
+  MaxWalletExceeded: "That purchase would take your wallet above this token's max-wallet limit.",
+  NotCreator: "Only this token's creator can do that.",
+  StillActive: "This token has traded within the last 30 days, so it isn't inactive yet.",
+  AlreadyLiquidating: "Liquidation has already started for this token.",
+  NotLiquidating: "This token isn't in liquidation.",
+  NotLiquidated: "This token needs to finish liquidating before it can be removed.",
+  TooManyHolders: "Tokens with 20 or more holders when they went inactive stay listed (Liquidated), not removed.",
 };
 
 /// Turn any wallet / RPC / contract failure into one short sentence a person can act on.

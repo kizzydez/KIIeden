@@ -4,7 +4,21 @@ import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { usePublicClient } from "wagmi";
 import { ACTIVE_CHAIN_ID, ADDRESSES, isSet } from "./config";
-import { collectionAbi, factoryAbi, feeManagerAbi, marketplaceAbi, rwaAssetAbi, rwaChatAbi, rwaCurveAbi, rwaFactoryAbi, rwaMarketplaceAbi } from "./contracts";
+import {
+  collectionAbi,
+  factoryAbi,
+  feeManagerAbi,
+  LAUNCH_STATUS,
+  launchpadAbi,
+  marketplaceAbi,
+  memeTokenAbi,
+  rwaAssetAbi,
+  rwaChatAbi,
+  rwaCurveAbi,
+  rwaFactoryAbi,
+  rwaMarketplaceAbi,
+  type LaunchStatus,
+} from "./contracts";
 import { fetchNftMetadata } from "./ipfs";
 import type { CollectionJson } from "./collectionInfo";
 import { buildMerkleTree, type MerkleTree } from "./merkle";
@@ -602,4 +616,203 @@ export function useRwaChat(asset: Address | undefined) {
       return rows.filter((x): x is ChatMessage => !!x);
     },
   });
+}
+
+// ------------------------------------------------------------------- launchpad
+export type LaunchInfo = {
+  token: Address;
+  creator: Address;
+  name: string;
+  symbol: string;
+  metadataURI: string;
+  maxWalletBps: number;
+  createdAt: number;
+};
+
+/// Every token ever created on the launchpad, newest first. Cheap: one event scan.
+export function useLaunchTokens() {
+  const client = useReadClient();
+  return useQuery({
+    queryKey: ["launchTokens", ACTIVE_CHAIN_ID, ADDRESSES.launchpad],
+    enabled: !!client && isSet(ADDRESSES.launchpad),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    queryFn: async (): Promise<LaunchInfo[]> => {
+      const logs = await getEventLogs(client!, ACTIVE_CHAIN_ID, {
+        address: ADDRESSES.launchpad,
+        abi: launchpadAbi,
+        eventName: "TokenCreated",
+      });
+      return logs
+        .map((l) => ({
+          token: l.args.token as Address,
+          creator: l.args.creator as Address,
+          name: l.args.name as string,
+          symbol: l.args.symbol as string,
+          metadataURI: l.args.metadataURI as string,
+          maxWalletBps: Number(l.args.maxWalletBps as number),
+          createdAt: 0, // filled in by useLaunchStates from lastTradeAt/createdAt on chain
+        }))
+        .reverse();
+    },
+  });
+}
+
+export type LaunchState = {
+  creator: Address;
+  createdAt: number;
+  lastTradeAt: number;
+  realKii: bigint;
+  tokenReserve: bigint;
+  maxWalletBps: number;
+  creatorFeeBps: number;
+  holderCount: number;
+  holderCountAtInactivity: number;
+  status: LaunchStatus;
+  metadataURI: string;
+  price: bigint;
+  isInactive: boolean;
+};
+
+async function readLaunchState(client: ReadClient, token: Address): Promise<LaunchState> {
+  const [raw, price, inactive] = await Promise.all([
+    client.readContract({ address: ADDRESSES.launchpad, abi: launchpadAbi, functionName: "launches", args: [token] }),
+    client.readContract({ address: ADDRESSES.launchpad, abi: launchpadAbi, functionName: "price", args: [token] }),
+    client.readContract({ address: ADDRESSES.launchpad, abi: launchpadAbi, functionName: "isInactive", args: [token] }),
+  ]);
+  const r = raw as readonly [Address, Address, bigint, bigint, bigint, bigint, number, number, number, number, number, string];
+  return {
+    creator: r[1],
+    createdAt: Number(r[2]),
+    lastTradeAt: Number(r[3]),
+    realKii: r[4],
+    tokenReserve: r[5],
+    maxWalletBps: Number(r[6]),
+    creatorFeeBps: Number(r[7]),
+    holderCount: Number(r[8]),
+    holderCountAtInactivity: Number(r[9]),
+    status: LAUNCH_STATUS[Number(r[10])] ?? "Active",
+    metadataURI: r[11],
+    price: price as bigint,
+    isInactive: inactive as boolean,
+  };
+}
+
+/// Live on-chain state (reserves, status, holder count) for a single token.
+export function useLaunchState(token: Address | undefined) {
+  const client = useReadClient();
+  return useQuery({
+    queryKey: ["launchState", ACTIVE_CHAIN_ID, token],
+    enabled: !!client && !!token && isSet(ADDRESSES.launchpad),
+    staleTime: 5_000,
+    refetchInterval: 10_000,
+    queryFn: async () => readLaunchState(client!, token!),
+  });
+}
+
+/// Live state for a whole list of tokens at once (used by the launchpad explore grid).
+export function useLaunchStates(tokens: Address[] | undefined) {
+  const client = useReadClient();
+  return useQuery({
+    queryKey: ["launchStates", ACTIVE_CHAIN_ID, tokens?.join(",") ?? ""],
+    enabled: !!client && !!tokens && tokens.length > 0,
+    staleTime: 10_000,
+    refetchInterval: 20_000,
+    queryFn: async (): Promise<Record<string, LaunchState>> => {
+      const rows = await mapPool(tokens!, 6, (t) => readLaunchState(client!, t));
+      const out: Record<string, LaunchState> = {};
+      tokens!.forEach((t, i) => {
+        const r = rows[i];
+        if (r) out[t.toLowerCase()] = r;
+      });
+      return out;
+    },
+  });
+}
+
+export type LaunchTrade = { isBuy: boolean; kii: bigint; tokens: bigint; price: bigint; time: number; trader: Address };
+
+/// Every buy/sell on a token's curve, oldest first (feeds the candlestick chart and
+/// is also how the launchpad list knows a token traded recently, for "New").
+export function useLaunchTrades(token: Address | undefined) {
+  const client = useReadClient();
+  return useQuery({
+    queryKey: ["launchTrades", ACTIVE_CHAIN_ID, token],
+    enabled: !!client && !!token && isSet(ADDRESSES.launchpad),
+    staleTime: 8_000,
+    refetchInterval: 15_000,
+    queryFn: async (): Promise<LaunchTrade[]> => {
+      const logs = await getEventLogs(client!, ACTIVE_CHAIN_ID, {
+        address: ADDRESSES.launchpad,
+        abi: launchpadAbi,
+        eventName: "Trade",
+        args: { token },
+      });
+      return logs.map((l) => ({
+        isBuy: l.args.isBuy as boolean,
+        kii: l.args.kiiAmount as bigint,
+        tokens: l.args.tokenAmount as bigint,
+        price: l.args.priceAfter as bigint,
+        time: Number(l.args.timestamp as bigint),
+        trader: l.args.trader as Address,
+      }));
+    },
+  });
+}
+
+export type LaunchHolding = { token: Address; name: string; symbol: string; balance: bigint };
+
+/// Every launchpad token `owner` currently holds a nonzero balance of — shown on
+/// the profile page next to NFTs and RWA units.
+export function useLaunchHoldings(owner: Address | undefined) {
+  const client = useReadClient();
+  const { data: tokens } = useLaunchTokens();
+  return useQuery({
+    queryKey: ["launchHoldings", ACTIVE_CHAIN_ID, owner, tokens?.length ?? -1],
+    enabled: !!client && !!owner && !!tokens,
+    staleTime: 15_000,
+    queryFn: async (): Promise<LaunchHolding[]> => {
+      const rows = await mapPool(tokens!, 6, async (t) => {
+        const bal = (await client!.readContract({ address: t.token, abi: memeTokenAbi, functionName: "balanceOf", args: [owner] })) as bigint;
+        return bal > 0n ? ({ token: t.token, name: t.name, symbol: t.symbol, balance: bal } as LaunchHolding) : null;
+      });
+      return rows.filter((x): x is LaunchHolding => !!x);
+    },
+  });
+}
+
+/// Global, admin-adjustable launchpad parameters (creation fee, protocol fee,
+/// default creator fee, graduation threshold) — used by the create page to show
+/// the live fee and by an admin panel to change them.
+export function useLaunchpadParams() {
+  const client = useReadClient();
+  return useQuery({
+    queryKey: ["launchpadParams", ACTIVE_CHAIN_ID, ADDRESSES.launchpad],
+    enabled: !!client && isSet(ADDRESSES.launchpad),
+    staleTime: 20_000,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const [creationFeeWei, protocolFeeBps, creatorFeeBpsDefault, graduationKiiThreshold, owner] = await Promise.all([
+        client!.readContract({ address: ADDRESSES.launchpad, abi: launchpadAbi, functionName: "creationFeeWei" }),
+        client!.readContract({ address: ADDRESSES.launchpad, abi: launchpadAbi, functionName: "protocolFeeBps" }),
+        client!.readContract({ address: ADDRESSES.launchpad, abi: launchpadAbi, functionName: "creatorFeeBpsDefault" }),
+        client!.readContract({ address: ADDRESSES.launchpad, abi: launchpadAbi, functionName: "graduationKiiThreshold" }),
+        client!.readContract({ address: ADDRESSES.launchpad, abi: launchpadAbi, functionName: "owner" }),
+      ]);
+      return {
+        creationFeeWei: creationFeeWei as bigint,
+        protocolFeeBps: Number(protocolFeeBps),
+        creatorFeeBpsDefault: Number(creatorFeeBpsDefault),
+        graduationKiiThreshold: graduationKiiThreshold as bigint,
+        owner: owner as Address,
+      };
+    },
+  });
+}
+
+/// True for the launchpad's owner wallet (used to gate the fee-admin panel).
+export function useIsLaunchpadAdmin() {
+  const { address } = useAccount();
+  const { data } = useLaunchpadParams();
+  return !!address && !!data && sameAddr(data.owner, address);
 }

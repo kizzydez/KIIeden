@@ -28,6 +28,7 @@ export const ADDRESSES = {
   rwaMarketplace: (process.env.NEXT_PUBLIC_RWA_MARKETPLACE_ADDRESS || ZERO) as `0x${string}`,
   rwaCurve: (process.env.NEXT_PUBLIC_RWA_CURVE_ADDRESS || ZERO) as `0x${string}`,
   rwaChat: (process.env.NEXT_PUBLIC_RWA_CHAT_ADDRESS || ZERO) as `0x${string}`,
+  launchpad: (process.env.NEXT_PUBLIC_LAUNCHPAD_ADDRESS || ZERO) as `0x${string}`,
 };
 
 export function isSet(address: string | undefined): boolean {
@@ -51,3 +52,14 @@ export const MAX_ROYALTY_PCT = 10; // mirrors NFTCollection's on-chain 10% cap
 export const NEW_IPO_WINDOW_SECONDS = 3 * 24 * 60 * 60; // an IPO counts as "new" for its first 3 days
 export const MAX_WHITELIST_SIZE = 50_000;
 export const CHAT_MAX_LENGTH = 280;
+
+// ---------------------------------------------------------------- launchpad
+// Mirrors the on-chain bounds in MemeLaunchpad.sol so the UI can validate before
+// sending a transaction. The contract is the source of truth; these are just for
+// instant client-side feedback.
+export const LAUNCHPAD_MIN_CREATION_FEE_KII = 1;
+export const LAUNCHPAD_MAX_CREATION_FEE_KII = 20;
+export const LAUNCHPAD_MIN_MAX_WALLET_BPS = 50; // 0.5%
+export const LAUNCHPAD_MAX_WALLET_DISABLED_BPS = 10000; // 100% = no cap
+export const LAUNCHPAD_DEFAULT_MAX_WALLET_BPS = 200; // 2%
+export const LAUNCHPAD_TOTAL_SUPPLY = 1_000_000_000; // fixed supply per token

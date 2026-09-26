@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
 import { ACTIVE_CHAIN_ID, ADDRESSES } from "@/lib/config";
-import { collectionAbi, marketplaceAbi, rwaCurveAbi, rwaMarketplaceAbi } from "@/lib/contracts";
-import { useCollections, useCollectionState, useListings, useOwnedNfts, useRwaHoldings, type CollectionInfo } from "@/lib/data";
+import { collectionAbi, launchpadAbi, marketplaceAbi, rwaCurveAbi, rwaMarketplaceAbi } from "@/lib/contracts";
+import { useCollections, useCollectionState, useLaunchHoldings, useLaunchState, useLaunchTokens, useListings, useOwnedNfts, useRwaHoldings, type CollectionInfo } from "@/lib/data";
 import { useTx } from "@/lib/useTx";
 import { fmtKii, sameAddr, shortAddr } from "@/lib/format";
 import { mintPhase } from "@/lib/status";
@@ -84,6 +84,52 @@ function CreatedRow({ c }: { c: CollectionInfo }) {
   );
 }
 
+function CreatedTokenRow({ token, name, symbol }: { token: `0x${string}`; name: string; symbol: string }) {
+  const tx = useTx();
+  const { data: state } = useLaunchState(token);
+  const { data: fees } = useReadContract({
+    address: ADDRESSES.launchpad,
+    abi: launchpadAbi,
+    functionName: "pendingCreatorFees",
+    args: [token],
+    chainId: ACTIVE_CHAIN_ID,
+  });
+  if (!state) return null;
+  const badgeClass =
+    state.status === "Active" ? "badge-nft badge-live" : state.status === "Graduated" ? "badge-warn" : state.status === "Deleted" ? "badge-muted" : "badge-warn";
+  return (
+    <div className="glass p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <Link href={`/launchpad/${token}`} className="font-display text-lg font-semibold tracking-tight text-white hover:text-accent-300">
+            {name}
+          </Link>
+          <p className="mt-1 text-sm text-zinc-400">
+            {symbol} · {state.holderCount} holder{state.holderCount === 1 ? "" : "s"}
+          </p>
+        </div>
+        <span className={`badge ${badgeClass}`}>{state.isInactive && state.status !== "Deleted" ? "Inactive" : state.status}</span>
+      </div>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="eyebrow">Creator fees earned</p>
+          <p className="font-display text-xl font-semibold text-white">{fmtKii((fees as bigint | undefined) ?? 0n, 6)} KII</p>
+        </div>
+        <TxButton
+          size="sm"
+          variant={fees && (fees as bigint) > 0n ? "primary" : "secondary"}
+          disabled={!fees || (fees as bigint) === 0n || tx.busy}
+          busy={tx.pending === `Claim fees ${token}`}
+          busyLabel="Claiming…"
+          onClick={() => void tx.run(`Claim fees ${token}`, { address: ADDRESSES.launchpad, abi: launchpadAbi, functionName: "claimCreatorFees", args: [token] })}
+        >
+          Claim
+        </TxButton>
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
   const tx = useTx();
@@ -119,11 +165,14 @@ export default function ProfilePage() {
   const { data: owned, isLoading: loadingOwned } = useOwnedNfts(address);
   const { data: listings } = useListings();
   const { data: holdings } = useRwaHoldings(address);
+  const { data: tokenHoldings } = useLaunchHoldings(address);
+  const { data: allTokens } = useLaunchTokens();
+  const createdTokens = (allTokens ?? []).filter((t) => sameAddr(t.creator, address));
 
   if (!isConnected || !address) {
     return (
       <div>
-        <PageHeader eyebrow="Account" title="Profile" subtitle="Your NFTs, collections, RWA holdings and earnings." />
+        <PageHeader eyebrow="Account" title="Profile" subtitle="Your NFTs, collections, launchpad tokens, RWA holdings and earnings." />
         <EmptyState icon="wallet" title="Connect your wallet" body="Your wallet address is your account — there's nothing to sign up for." />
       </div>
     );
@@ -212,6 +261,39 @@ export default function ProfilePage() {
           </div>
         </section>
       )}
+
+      {/* tokens created */}
+      {createdTokens.length > 0 && (
+        <section className="mb-14">
+          <h2 className="mb-5 font-display text-xl font-semibold tracking-tight text-white">Tokens you created</h2>
+          <div className="grid gap-5 lg:grid-cols-2">
+            {createdTokens.map((t) => (
+              <CreatedTokenRow key={t.token} token={t.token} name={t.name} symbol={t.symbol} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* launchpad tokens */}
+      <section className="mb-14">
+        <h2 className="mb-5 font-display text-xl font-semibold tracking-tight text-white">
+          My tokens <span className="text-zinc-400 text-lg font-normal">{tokenHoldings ? tokenHoldings.length : ""}</span>
+        </h2>
+        {tokenHoldings && tokenHoldings.length === 0 && (
+          <EmptyState icon="wallet" title="No memecoins yet" body="Buy into a fair launch, or create your own on the launchpad." action={{ href: "/launchpad", label: "Browse launchpad" }} />
+        )}
+        <div className="grid sm:grid-cols-2 gap-4 stagger">
+          {tokenHoldings?.map((h) => (
+            <Link key={h.token} href={`/launchpad/${h.token}`} className="glass glass-hover p-5 flex items-center justify-between">
+              <div>
+                <p className="font-display font-semibold text-white">{h.name}</p>
+                <p className="text-xs text-zinc-400">{h.symbol}</p>
+              </div>
+              <p className="font-display text-xl font-bold text-accent-300">{fmtKii(h.balance, 2)}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* RWA holdings */}
       <section>

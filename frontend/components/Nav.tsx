@@ -13,6 +13,7 @@ import { IS_MAINNET } from "@/lib/config";
 const LINKS = [
   { href: "/explore", label: "Explore" },
   { href: "/collections", label: "Collections" },
+  { href: "/launchpad", label: "Launchpad" },
   { href: "/rwa", label: "RWA" },
 ];
 
@@ -90,6 +91,10 @@ export default function Nav() {
                   <span className="font-medium text-white">Collection</span>
                   <span className="block text-xs text-zinc-400">Thousands of images, one minting link</span>
                 </Link>
+                <Link href="/launchpad/create" className="px-3 py-2.5 rounded-xl hover:bg-white/5 text-sm">
+                  <span className="font-medium text-white">Memecoin</span>
+                  <span className="block text-xs text-zinc-400">Fair-launch a token on the bonding curve</span>
+                </Link>
                 {isAdmin && (
                   <Link href="/rwa/create" className="px-3 py-2.5 rounded-xl hover:bg-white/5 text-sm">
                     <span className="font-medium text-white">RWA asset</span>
@@ -107,6 +112,14 @@ export default function Nav() {
             <Icon name="search" />
           </Link>
           <ThemeToggle className="hidden sm:inline-flex" />
+          <Link
+            href="/profile"
+            className="hidden md:inline-flex btn btn-ghost btn-sm !px-2.5"
+            aria-label="Your profile"
+            aria-current={active("/profile") ? "page" : undefined}
+          >
+            <Icon name="user" />
+          </Link>
           <ConnectButton showBalance={false} chainStatus="icon" accountStatus={{ smallScreen: "avatar", largeScreen: "full" }} />
           <button
             className="md:hidden btn btn-secondary btn-sm !px-3"
@@ -128,6 +141,7 @@ export default function Nav() {
             { href: "/faq", label: "Help & FAQ" },
             { href: "/create/single", label: "Create NFT" },
             { href: "/create/collection", label: "Create collection" },
+            { href: "/launchpad/create", label: "Launch a memecoin" },
             ...(isAdmin ? [{ href: "/rwa/create", label: "Create RWA asset" }] : []),
           ].map((l) => (
             <Link key={l.href} href={l.href} className="px-3 py-3 rounded-xl hover:bg-white/5 text-sm font-medium" aria-current={active(l.href) ? "page" : undefined}>

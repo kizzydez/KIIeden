@@ -39,6 +39,8 @@ Add a Pinata JWT on the create pages (stored only in your browser).
 **Platform fee** (2 KII testnet, 1 KII mainnet, owner-adjustable up to 50 KII) is charged inside the create transaction. It is no longer displayed on any page.
 Change it: `FEE_MANAGER_ADDRESS=0x... FEE_KII=50 npx hardhat run scripts/setFee.js --network kiiMainnet`.
 
+**Launchpad (fair-launch memecoins).** `/launchpad` — no-code token creation (`MemeLaunchpad.sol` + `MemeToken.sol`), a bonding curve with optional graduation to a permanent AMM, creator fee-sharing (claim anytime from `/profile`), sniping bots allowed by design, and a permissionless 30-day-inactivity → largest-holder-first liquidation → conditional deletion lifecycle. Creation fee is owner-adjustable between 1-20 KII (default 2 KII). Full design writeup: **[`LAUNCHPAD.md`](./LAUNCHPAD.md)**.
+
 ## Latest round: production hardening + Vercel deploy
 
 **Security**: nonce-based CSP (`middleware.ts`), security headers (HSTS, X-Frame-Options, Permissions-Policy...), per-client rate limiting, input sanitising for everything written to IPFS (`lib/sanitize.ts`), `safeHref` on every user/IPFS-derived link (blocks `javascript:`/`data:`), secrets kept out of the bundle (Pinata key never in an env var), removed the unused `solc` and dead `compile-check.js`. New checks: `npm run check:secrets` (scans working tree + git history), `npm run check:links`, `npm run check:compliance` (from before), `npm run check:all` / `build:prod`. See `SECURITY.md`.
@@ -46,6 +48,12 @@ Change it: `FEE_MANAGER_ADDRESS=0x... FEE_KII=50 npx hardhat run scripts/setFee.
 **UI/UX**: dark/light theme toggle (purple+black stays default), sticky header, fixed mobile menu, FAQ (expandable), site search, custom 404 and error pages, real favicon/app icons + manifest, per-page titles and meta descriptions, sitemap.xml/robots.txt, confirmation dialogs before irreversible actions (end mint, reveal early, sell now, remove all liquidity), copy-to-clipboard on every address, floating help button, dynamic copyright year, clickable email/phone in the footer, testnet notice banner, loading and error boundaries, horizontal-scroll and touch-target fixes. No emojis (still).
 
 **Deploy**: see `DEPLOY.md` for the exact KiiChain-testnet-then-Vercel steps.
+
+## Newest round: Launchpad + profile fixes
+
+- **Launchpad:** see the "Launchpad (fair-launch memecoins)" section above and `LAUNCHPAD.md` for the full design.
+- **Desktop nav fix:** the Profile link/icon existed only in the mobile menu; it's now also in the desktop nav bar (`components/Nav.tsx`).
+- **Profile page:** now shows launchpad holdings ("My tokens") and, for tokens you created, a live creator-fee dashboard with a one-click claim, alongside the existing NFT and RWA sections.
 
 ## New in this round
 
