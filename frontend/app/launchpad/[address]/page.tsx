@@ -72,7 +72,7 @@ function TokenView({ token }: { token: Address }) {
         <div className="glass p-6">
           <div className="flex flex-wrap items-start gap-5">
             <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl">
-              <IpfsImage src={meta?.image} alt={`${meta?.name ?? "Token"} art`} className="h-full w-full" fallback={<Icon name="wallet" className="text-3xl" />} />
+              <IpfsImage src={meta?.image} alt="Token art" className="h-full w-full" fallback={<Icon name="wallet" className="text-3xl" />} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
